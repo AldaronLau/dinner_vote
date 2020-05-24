@@ -7,7 +7,7 @@ The app `POST`s to `/meal_vote` to communicate.
 - "l" => Get entire list of dinner options
 - "g{}" => Get details for a specific dinner option (pass index)
 - "v{}" => Vote (pass User ID)
-- "r{}" => Revoke Vote (pass User ID)
+- "u{}" => Revoke Vote (pass User ID)
 - "a{}" => View all votes (pass User ID)
 - "c{}" => Create account (pass user's name)
 - "n{} {}" => New dinner option (pass (User ID, Shortname))
