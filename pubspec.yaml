@@ -1,21 +1,29 @@
-name: dinner_vote
+name: MealVote
 description: Family Dinner Voting
+
+publish_to: 'none'
 
 version: 0.1.0
 
 environment:
-  sdk: ">=2.0.0-dev.68.0 <3.0.0"
+  sdk: ">=2.7.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^0.1.2
-  sqflite: any
+
+  cupertino_icons: ^0.1.3
+  http: ^0.12.1
 
 dev_dependencies:
+  flutter_launcher_icons: "^0.7.2+1"
   flutter_test:
     sdk: flutter
 
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "icon.png"
 
 flutter:
   uses-material-design: true

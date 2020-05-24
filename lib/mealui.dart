@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'meal.dart';
-import 'db.dart';
+// import 'db.dart';
 
 class MealListPage extends StatefulWidget {
   final GlobalKey<DinnerVoteAppState> appKey;
@@ -14,7 +14,7 @@ class MealListPage extends StatefulWidget {
 
 class _MealListPageState extends State<MealListPage> {
   final _dinners = new List<Meal>();
-  final _db = DbHelper();
+  // final _db = DbHelper();
 
   @override
   void initState() {
@@ -68,14 +68,14 @@ class _MealListPageState extends State<MealListPage> {
   }
 
   _loadMeals() async {
-    _db.getAllMeals().then((meals) {
+    /*_db.getAllMeals().then((meals) {
       setState(() {
         _dinners.clear();
         meals.forEach((meal) {
           _dinners.add(Meal.fromMap(meal));
         });
       });
-    });
+    });*/
   }
 
   _editMeal(BuildContext context, Meal meal) async {
@@ -122,7 +122,7 @@ class MealBody extends StatefulWidget {
 }
 
 class _MealBodyState extends State<MealBody> {
-  DbHelper db = new DbHelper();
+  // DbHelper db = new DbHelper();
 
   TextEditingController _title;
   TextEditingController _description;
@@ -210,9 +210,9 @@ class _MealBodyState extends State<MealBody> {
   }
 
   _deleteMeal(BuildContext context) {
-    db.deleteMeal(widget.meal.id).then((_) {
+    /*db.deleteMeal(widget.meal.id).then((_) {
       Navigator.pop(context, 'delete');
-    });
+    });*/
   }
 
   String _buttonTitle() {
@@ -247,7 +247,7 @@ class _MealBodyState extends State<MealBody> {
   }
 
   _updateMeal(BuildContext context) {
-    db
+    /*db
         .updateMeal(Meal.fromMap({
       'id': widget.meal.id,
       'title': _getTitle(),
@@ -258,18 +258,18 @@ class _MealBodyState extends State<MealBody> {
     }).catchError((e) {
       final snackBar = SnackBar(content: Text('Title must be unique'));
       Scaffold.of(context).showSnackBar(snackBar);
-    });
+    });*/
   }
 
   _saveMeal(BuildContext context) {
     final title = _getTitle();
     if (title.length == 0)
       return;
-    db.saveMeal(Meal(title, _getDescription())).then((_) {
+    /*db.saveMeal(Meal(title, _getDescription())).then((_) {
       Navigator.pop(context, 'save');
     }).catchError((e) {
       final snackBar = SnackBar(content: Text('Title must be unique'));
       Scaffold.of(context).showSnackBar(snackBar);
-    });
+    });*/
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'person.dart';
-import 'db.dart';
+// import 'db.dart';
 
 class PersonListPage extends StatefulWidget {
   final GlobalKey<DinnerVoteAppState> appKey;
@@ -14,7 +14,7 @@ class PersonListPage extends StatefulWidget {
 
 class _PersonListPageState extends State<PersonListPage> {
   final _dinners = new List<Person>();
-  final _db = DbHelper();
+  // final _db = DbHelper();
 
   @override
   void initState() {
@@ -67,14 +67,14 @@ class _PersonListPageState extends State<PersonListPage> {
   }
 
   _loadPeople() async {
-    _db.getAllPeople().then((people) {
+    /*_db.getAllPeople().then((people) {
       setState(() {
         _dinners.clear();
         people.forEach((person) {
           _dinners.add(Person.fromMap(person));
         });
       });
-    });
+    });*/
   }
 
   _editPerson(BuildContext context, Person person) async {
@@ -121,7 +121,7 @@ class PersonBody extends StatefulWidget {
 }
 
 class _PersonBodyState extends State<PersonBody> {
-  DbHelper db = new DbHelper();
+  // DbHelper db = new DbHelper();
 
   TextEditingController _name;
 
@@ -174,9 +174,9 @@ class _PersonBodyState extends State<PersonBody> {
   }
 
   _deletePerson(BuildContext context) {
-    db.deletePerson(widget.person.id).then((_) {
+    /*db.deletePerson(widget.person.id).then((_) {
       Navigator.pop(context, 'delete');
-    });
+    });*/
   }
 
   String _buttonTitle() {
@@ -207,7 +207,7 @@ class _PersonBodyState extends State<PersonBody> {
   }
 
   _updatePerson(BuildContext context) {
-    db
+    /*db
         .updatePerson(Person.fromMap({
       'id': widget.person.id,
       'name': _getName(),
@@ -217,18 +217,18 @@ class _PersonBodyState extends State<PersonBody> {
     }).catchError((e) {
       final snackBar = SnackBar(content: Text('Name must be unique'));
       Scaffold.of(context).showSnackBar(snackBar);
-    });
+    });*/
   }
 
   _savePerson(BuildContext context) {
     final name = _getName();
     if (name.length == 0)
       return;
-    db.savePerson(Person(name)).then((_) {
+    /*db.savePerson(Person(name)).then((_) {
       Navigator.pop(context, 'save');
     }).catchError((e) {
       final snackBar = SnackBar(content: Text('Name must be unique'));
       Scaffold.of(context).showSnackBar(snackBar);
-    });
+    });*/
   }
 }
