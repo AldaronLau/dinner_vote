@@ -1,16 +1,22 @@
 # MealVote
+An app for choosing dinner.
 
-A new Flutter project.
+The app `POST`s to `/meal_vote` to communicate.
 
-## Getting Started
+## Messages
+- "l" => Get entire list of dinner options
+- "g{}" => Get details for a specific dinner option (pass index)
+- "v{}" => Vote (pass User ID)
+- "r{}" => Revoke Vote (pass User ID)
+- "a{}" => View all votes (pass User ID)
+- "c{}" => Create account (pass user's name)
+- "n{} {}" => New dinner option (pass (User ID, Shortname))
+- "s{} {} {}" => Edit shortname (pass (User ID, index, Shortname))
+- "t{} {} {}" => Edit title / longname (pass (User ID, index, Shortname))
+- "m{} {} {}" => Edit More details (pass (User ID, index, Shortname))
+- "p{} {} {}" => Edit picture (pass (User ID, index, Shortname))
+- "d{} {}" => Delete dinner option (pass (User ID, index))
+- "r{} {} {}" => Set rating (pass (User ID, index, rating))
+- "y{} {?}" => View analytics (pass (User ID, index?))
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
