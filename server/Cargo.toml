@@ -1,0 +1,9 @@
+[package]
+name = "tide-server"
+version = "0.1.0"
+authors = ["Jeron Aldaron Lau <jeronlau@plopgrizzly.com>"]
+edition = "2018"
+
+[dependencies]
+tide = "0.9"
+async-std = { version = "1.6", features = ["attributes"] }
