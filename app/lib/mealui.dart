@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 import 'main.dart';
 import 'meal.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 // import 'db.dart';
 
 class MealListPage extends StatefulWidget {
@@ -20,6 +22,7 @@ class _MealListPageState extends State<MealListPage> {
     String username = null;
 
     void create_user(String user) {
+        widget.storage.writeName(user);
         String body = "c " + user;
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
     }
@@ -342,5 +345,39 @@ class SetNameState extends State<SetName> {
                 ),
             ],
         );
+    }
+}
+
+class LocalStorage {
+    Future<String> get _localPath async {
+        final directory = await getApplicationDocumentsDirectory();
+
+        return directory.path;
+    }
+
+    Future<File> get _localFile async {
+        final path = await _localPath;
+        return File('$path/user.txt');
+    }
+
+    Future<String> readName() async {
+        try {
+            final file = await _localFile;
+
+            // Read the file
+            String contents = await file.readAsString();
+
+            return contents;
+        } catch (e) {
+            // If encountering an error, return 0
+            return null;
+        }
+    }
+
+    Future<File> writeName(String name) async {
+        final file = await _localFile;
+
+        // Write the file
+        return file.writeAsString('$name');
     }
 }
