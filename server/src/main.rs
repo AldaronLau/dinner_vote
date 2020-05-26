@@ -491,6 +491,6 @@ async fn main() -> Result<(), std::io::Error> {
     tide::log::start();
     let mut app = tide::with_state(server);
     app.at("/meal_vote").post(handle_event);
-    app.listen("127.0.0.1:8080").await?;
+    app.listen("192.168.0.111:8080" /*"127.0.0.1:8080"*/).await?;
     Ok(())
 }

@@ -1,26 +1,53 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'meal.dart';
+import 'package:http/http.dart' as http;
 // import 'db.dart';
 
 class MealListPage extends StatefulWidget {
-  final GlobalKey<DinnerVoteAppState> appKey;
+    final GlobalKey<DinnerVoteAppState> appKey;
+    final LocalStorage storage;
 
-  MealListPage(appKey) : appKey = appKey;
+    MealListPage(appKey, {@required this.storage}) : appKey = appKey;
 
-  @override
-  _MealListPageState createState() => _MealListPageState();
+    @override
+    _MealListPageState createState() => _MealListPageState();
 }
 
 class _MealListPageState extends State<MealListPage> {
-  final _dinners = new List<Meal>();
-  // final _db = DbHelper();
+    final _dinners = new List<Meal>();
+    
+    String username = null;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadMeals();
-  }
+    void create_user(String user) {
+        String body = "c " + user;
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
+    }
+
+    @override
+    void initState() {
+        super.initState();
+        // Read name from file, or make user set name.
+        widget.storage.readName().then((String name) {
+            if (name == null) {
+                showDialog(
+                    context: context,
+                    builder: (_) => SetName(),
+                ).then((var name) {
+                    setState(() {
+                        username = name;
+                        create_user(username);
+                    });
+                });
+            } else {
+                setState(() {
+                    username = name;
+                });
+            }
+        });
+        
+        _loadMeals();
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +55,6 @@ class _MealListPageState extends State<MealListPage> {
       appBar: AppBar(
         title: Text('Dinner Vote: Meals'),
       ),
-      drawer: widget.appKey.currentState.getDrawer(context),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
@@ -90,11 +116,11 @@ class _MealListPageState extends State<MealListPage> {
 }
 
 class MealPage extends StatefulWidget {
-  final Meal meal;
-  MealPage(this.meal);
+    final Meal meal;
+    MealPage(this.meal);
 
-  @override
-  State<StatefulWidget> createState() => _MealPageState();
+    @override
+    State<StatefulWidget> createState() => _MealPageState();
 }
 
 class _MealPageState extends State<MealPage> {
@@ -272,4 +298,49 @@ class _MealBodyState extends State<MealBody> {
       Scaffold.of(context).showSnackBar(snackBar);
     });*/
   }
+}
+
+// Set user's name
+class SetName extends StatefulWidget {
+    SetName({Key key}): super(key: key);
+
+    @override
+    SetNameState createState() { return new SetNameState(); }
+}
+
+class SetNameState extends State<SetName> {
+    TextEditingController text_controller;
+
+    @override
+    void initState() {
+        super.initState();
+        text_controller = TextEditingController(
+            text: "",
+        );
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return new AlertDialog(
+            title: const Text('Enter your first name:'),
+            content: TextField(controller: text_controller,
+                toolbarOptions: ToolbarOptions(
+                    copy: false, cut: false, paste: false, selectAll: false
+                ),
+                autofocus: true),
+            actions: <Widget>[
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                        FlatButton(
+                            onPressed: () {
+                                Navigator.of(context).pop(text_controller.text);
+                            },
+                            child: Text("Set Name"),
+                        ),
+                    ]
+                ),
+            ],
+        );
+    }
 }

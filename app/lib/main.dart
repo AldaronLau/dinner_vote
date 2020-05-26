@@ -3,52 +3,78 @@ import 'mealui.dart';
 import 'person_ui.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
-void main() => runApp(DinnerVoteApp());
+void main() => runApp(MyApp());
 
 final key = GlobalKey<DinnerVoteAppState>();
 
-class DinnerVoteApp extends StatefulWidget {
-  DinnerVoteApp(): super(key: key);
+class MyApp extends StatelessWidget {
+    @override
+    Widget build(BuildContext context) {
+        return new MaterialApp(
+            title: "MealVote",
+            theme: ThemeData(
+                primaryColor: Color(0xFF3832AC),
+                primaryColorLight: Color(0xFF705DDF),
+                primaryColorDark: Color(0xFF000A7C),
+                accentColor: Color(0xFFFFA866),
+                cardColor: Color(0xFFDDDDDD),
+            ),
+            debugShowCheckedModeBanner: false,
+            home: new MealListPage(key, storage: LocalStorage()),
+        );
+    }
+}
 
-  @override
-  State<StatefulWidget> createState() => DinnerVoteAppState();
+class DinnerVoteApp extends StatefulWidget {
+    final LocalStorage storage;
+
+    DinnerVoteApp({@required this.storage}): super(key: key);
+
+    @override
+    State<StatefulWidget> createState() => DinnerVoteAppState();
 }
 
 class DrawerItem {
-  final String title;
-  final IconData icon;
-  final Widget page;
+    final String title;
+    final IconData icon;
+    final Widget page;
 
-  DrawerItem(this.title, this.icon, this.page);
+    DrawerItem(this.title, this.icon, this.page);
 }
 
 class DinnerVoteAppState extends State<DinnerVoteApp> {
-  final items = [
-    DrawerItem('Meals', Icons.info, MealListPage(key)),
-    DrawerItem('People', Icons.person, PersonListPage(key)),
-  ];
 
-  var item;
 
-  DinnerVoteAppState() {
-    item = items[0];
-  }
+    final items = [
+        DrawerItem('Meals', Icons.info, MealListPage(key)),
+        DrawerItem('People', Icons.person, PersonListPage(key)),
+    ];
+
+    var item;
+
+    DinnerVoteAppState() {
+        item = items[0];
+    }
+    
+    @override
+    void initState() {
+        super.initState();
+    }
   
-  String get_dinners() {
-    return await http.read('https://10.0.0.90/dinners');
-  }
-  
-  void post_user(String user) {
-    http.post('https://10.0.0.90/user?u=' + user).then((HttpRequest resp) {
-      // Do something with the response.
-    });
-  }
+    void get_dinners() {
+        String body = "l";
+        http.post('192.168.0.111:8080/meal_vote', body: body).then((resp) => {
+            print(resp.body)
+            // Do something with the response.
+        });
+    }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dinner Vote',
+      title: 'MealVote',
       theme: ThemeData(
         primaryColor: Color(0xFF3832AC),
         primaryColorLight: Color(0xFF705DDF),
@@ -90,5 +116,39 @@ class DinnerVoteAppState extends State<DinnerVoteApp> {
   _onSelectItem(BuildContext context, int index) {
     setState(() => item = items[index]);
     Navigator.of(context).pop();
+  }
+}
+
+class LocalStorage {
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+
+    return directory.path;
+  }
+
+  Future<File> get _localFile async {
+    final path = await _localPath;
+    return File('$path/user.txt');
+  }
+
+  Future<String> readName() async {
+    try {
+      final file = await _localFile;
+
+      // Read the file
+      String contents = await file.readAsString();
+
+      return contents;
+    } catch (e) {
+      // If encountering an error, return 0
+      return null;
+    }
+  }
+
+  Future<File> writeName(String name) async {
+    final file = await _localFile;
+
+    // Write the file
+    return file.writeAsString('$name');
   }
 }
