@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // A dinner option
@@ -8,6 +8,8 @@ struct Dinner {
     short: String,
     // Long description
     long: String,
+    // Photo of the dinner option.
+    photo: Option<Vec<u8>>,
     // Who voted for this one, if anyone
     vote: Option<String>,
 }
@@ -15,8 +17,10 @@ struct Dinner {
 // A person
 #[derive(Serialize, Deserialize, Debug)]
 struct Person {
-    // Number of votes
+    // Number of votes.
     votes: u16,
+    // Admin can delete, add and edit dinners.
+    admin: bool,
 }
 
 // Database of dinners & votes
@@ -36,7 +40,7 @@ struct Database {
 impl Database {
     fn new() -> Self {
         let data: std::sync::Mutex<DatabaseData> = if std::path::Path::new("database").exists() {
-            std::sync::Mutex::new(bincode::deserialize(&std::fs::read("database").unwrap()).unwrap())
+            std::sync::Mutex::new(muon_rs::from_slice(&std::fs::read("database").unwrap()).unwrap())
         } else {
             std::sync::Mutex::new(DatabaseData {
                 dinners: HashMap::new(),
@@ -44,15 +48,13 @@ impl Database {
             })
         };
 
-        Database {
-            data
-        }
+        Database { data }
     }
 
     fn update<F: FnOnce(&mut DatabaseData)>(&self, closure: F) {
         closure(&mut self.data.lock().unwrap());
 
-        let encoded: Vec<u8> = bincode::serialize(&self.data).unwrap();
+        let encoded: Vec<u8> = muon_rs::to_vec(&self.data).unwrap();
 
         // Create temp file
         std::fs::write("temp", encoded).unwrap();
@@ -63,18 +65,57 @@ impl Database {
 }
 
 enum DbEvent {
-    NewUser { name: String },
-    Vote { name: String },
-    Unvote { name: String },
-    ViewVotes { name: String },
-    NewDinner { user: String, name: String },
-    EditShortname { user: String, index: String, name: String},
-    EditLongname { user: String, index: String, name: String},
-    EditDetails { user: String, index: String, name: String},
-    EditPhoto { user: String, index: String, photo: Vec<u8>},
-    DeleteDinner { user: String, index: String},
-    SetRating { user: String, index: String, rating: String},
-    ViewAnalytics { user: String, index: Option<String>},
+    NewUser {
+        name: String,
+    },
+    Vote {
+        user: String,
+        index: String,
+    },
+    Unvote {
+        user: String,
+        index: String,
+    },
+    ViewVotes {
+        name: String,
+    },
+    NewDinner {
+        user: String,
+        name: String,
+    },
+    EditShortname {
+        user: String,
+        index: String,
+        name: String,
+    },
+    EditLongname {
+        user: String,
+        index: String,
+        name: String,
+    },
+    EditDetails {
+        user: String,
+        index: String,
+        name: String,
+    },
+    EditPhoto {
+        user: String,
+        index: String,
+        photo: Vec<u8>,
+    },
+    DeleteDinner {
+        user: String,
+        index: String,
+    },
+    SetRating {
+        user: String,
+        index: String,
+        rating: String,
+    },
+    ViewAnalytics {
+        user: String,
+        index: Option<String>,
+    },
 }
 
 fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Receiver<DbEvent>) {
@@ -82,44 +123,102 @@ fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Re
         match event {
             DbEvent::NewUser { name } => {
                 database.update(|db| {
+                    // Add person if they're not already in the system.
+                    if db.people.get(&name).is_none() {
+                        db.people.insert(
+                            name,
+                            Person {
+                                votes: 0,
+                                admin: false,
+                            },
+                        );
+                    }
                 });
             }
-            DbEvent::Vote { name } => {
+            DbEvent::Vote { user, index } => {
                 database.update(|db| {
+                    if let Some(person) = db.people.get_mut(&user) {
+                        if let Some(dinner) = db.dinners.get_mut(&index) {
+                            if dinner.vote.is_none() {
+                                dinner.vote = Some(user);
+                                person.votes -= 1;
+                            }
+                        }
+                    }
                 });
             }
-            DbEvent::Unvote { name } => {
+            DbEvent::Unvote { user, index } => {
                 database.update(|db| {
+                    if let Some(person) = db.people.get_mut(&user) {
+                        if let Some(dinner) = db.dinners.get_mut(&index) {
+                            if dinner.vote == Some(user) {
+                                dinner.vote = None;
+                                person.votes += 1;
+                            }
+                        }
+                    }
                 });
             }
-            DbEvent::ViewVotes { name } => {
-                database.update(|db| {
-                });
-            }
+            DbEvent::ViewVotes { name } => {}
             DbEvent::NewDinner { user, name } => {
                 database.update(|db| {
+                    // Add person if they're not already in the system.
+                    if db.dinners.get(&name).is_none() {
+                        db.dinners.insert(
+                            name,
+                            Dinner {
+                                short: "Short description".to_string(),
+                                long: "Long description".to_string(),
+                                photo: None,
+                                vote: None,
+                            },
+                        );
+                    }
                 });
             }
             DbEvent::EditShortname { user, index, name } => {
                 database.update(|db| {
+                    if let Some(value) = db.dinners.remove(&index) {
+                        db.dinners.insert(name, value);
+                    }
                 });
             }
             DbEvent::EditLongname { user, index, name } => {
                 database.update(|db| {
+                    if let Some(dinner) = db.dinners.get_mut(&index) {
+                        dinner.short = name;
+                    }
                 });
             }
             DbEvent::EditDetails { user, index, name } => {
                 database.update(|db| {
+                    if let Some(dinner) = db.dinners.get_mut(&index) {
+                        dinner.long = name;
+                    }
                 });
             }
-            DbEvent::EditPhoto { user, index, photo} => {
+            DbEvent::EditPhoto { user, index, photo } => {
+                database.update(|db| {
+                    // FIXME
+                });
             }
             DbEvent::DeleteDinner { user, index } => {
+                database.update(|db| {
+                    database.update(|db| {
+                        db.dinners.remove(&index);
+                    });
+                });
             }
-            DbEvent::SetRating { user, index, rating} => {
+            DbEvent::SetRating {
+                user,
+                index,
+                rating,
+            } => {
+                database.update(|db| {
+                    // FIXME
+                });
             }
-            DbEvent::ViewAnalytics { user, index } => {
-            }
+            DbEvent::ViewAnalytics { user, index } => {}
         }
     }
 }
@@ -130,13 +229,19 @@ struct Server {
 }
 
 async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide::Error> {
-    let post = request.body_string().await.unwrap_or_else(|_| "".to_string());
+    let post = request
+        .body_string()
+        .await
+        .unwrap_or_else(|_| "".to_string());
     let mut out = String::new();
 
     match post {
         // Get entire list of dinner options
         a if a.starts_with("l") => {
-            for key in (*request.state().database.data.lock().unwrap()).dinners.keys() {
+            for key in (*request.state().database.data.lock().unwrap())
+                .dinners
+                .keys()
+            {
                 out.push_str(key);
                 out.push('\r');
             }
@@ -146,7 +251,8 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
         a if a.starts_with("g") => {
             if a.chars().nth(1).unwrap() == ' ' {
                 if let Some(details) = (*request.state().database.data.lock().unwrap())
-                    .dinners.get(&a[2..])
+                    .dinners
+                    .get(&a[2..])
                 {
                     out.push_str(&details.short);
                     out.push('\r');
@@ -155,21 +261,23 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
                 }
             }
         }
-        //{}" => Vote (pass User ID)
+        // Vote (pass (User ID, index))
         a if a.starts_with("v") => {
-            let args = a.split(' ');
-            if let Some(user_id) = args.skip(1).next() {
+            let mut args = a.split(' ').skip(1);
+            if let Some((user, index)) = args.next().and_then(|a| Some((a, args.next()?))) {
                 let _ = request.state().send.lock().unwrap().send(DbEvent::Vote {
-                    name: user_id.to_string(),
+                    user: user.to_string(),
+                    index: index.to_string(),
                 });
             }
         }
-        //{}" => Revoke Vote (pass User ID)
+        // Revoke Vote (pass (User ID, index))
         a if a.starts_with("u") => {
-            let args = a.split(' ');
-            if let Some(user_id) = args.skip(1).next() {
+            let mut args = a.split(' ').skip(1);
+            if let Some((user, index)) = args.next().and_then(|a| Some((a, args.next()?))) {
                 let _ = request.state().send.lock().unwrap().send(DbEvent::Unvote {
-                    name: user_id.to_string(),
+                    user: user.to_string(),
+                    index: index.to_string(),
                 });
             }
         }
@@ -177,9 +285,14 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
         a if a.starts_with("a") => {
             let args = a.split(' ');
             if let Some(user_id) = args.skip(1).next() {
-                let _ = request.state().send.lock().unwrap().send(DbEvent::ViewVotes {
-                    name: user_id.to_string(),
-                });
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::ViewVotes {
+                        name: user_id.to_string(),
+                    });
             }
         }
         //{}" => Create account (pass user's name)
@@ -194,55 +307,76 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
         //{} {}" => New dinner option (pass (User ID, Shortname))
         a if a.starts_with("n") => {
             let mut args = a.split(' ').skip(1);
-            if let Some((user, name)) = args.next()
-                .and_then(|a| Some((a, args.next()?)))
-            {
-                let _ = request.state().send.lock().unwrap().send(DbEvent::NewDinner {
-                    user: user.to_string(),
-                    name: name.to_string(),
-                });
+            if let Some((user, name)) = args.next().and_then(|a| Some((a, args.next()?))) {
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::NewDinner {
+                        user: user.to_string(),
+                        name: name.to_string(),
+                    });
             }
         }
         //{} {} {}" => Edit shortname (pass (User ID, index, Shortname))
         a if a.starts_with("s") => {
             let mut args = a.split(' ').skip(1);
-            if let Some((user, index, name)) = args.next()
+            if let Some((user, index, name)) = args
+                .next()
                 .and_then(|a| Some((a, args.next()?)))
                 .and_then(|(a, b)| Some((a, b, args.next()?)))
             {
-                let _ = request.state().send.lock().unwrap().send(DbEvent::EditShortname {
-                    user: user.to_string(),
-                    index: index.to_string(),
-                    name: name.to_string(),
-                });
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::EditShortname {
+                        user: user.to_string(),
+                        index: index.to_string(),
+                        name: name.to_string(),
+                    });
             }
         }
         //{} {} {}" => Edit title / longname (pass (User ID, index, Shortname))
         a if a.starts_with("t") => {
             let mut args = a.split(' ').skip(1);
-            if let Some((user, index, name)) = args.next()
+            if let Some((user, index, name)) = args
+                .next()
                 .and_then(|a| Some((a, args.next()?)))
                 .and_then(|(a, b)| Some((a, b, args.next()?)))
             {
-                let _ = request.state().send.lock().unwrap().send(DbEvent::EditLongname {
-                    user: user.to_string(),
-                    index: index.to_string(),
-                    name: name.to_string(),
-                });
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::EditLongname {
+                        user: user.to_string(),
+                        index: index.to_string(),
+                        name: name.to_string(),
+                    });
             }
         }
         //{} {} {}" => Edit More details (pass (User ID, index, Shortname))
         a if a.starts_with("m") => {
             let mut args = a.split(' ').skip(1);
-            if let Some((user, index, name)) = args.next()
+            if let Some((user, index, name)) = args
+                .next()
                 .and_then(|a| Some((a, args.next()?)))
                 .and_then(|(a, b)| Some((a, b, args.next()?)))
             {
-                let _ = request.state().send.lock().unwrap().send(DbEvent::EditDetails {
-                    user: user.to_string(),
-                    index: index.to_string(),
-                    name: name.to_string(),
-                });
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::EditDetails {
+                        user: user.to_string(),
+                        index: index.to_string(),
+                        name: name.to_string(),
+                    });
             }
         }
         //{} {} {}" => Edit picture (pass (User ID, index, Shortname))
@@ -250,69 +384,93 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
             let mut iter = a.bytes().enumerate().skip(1);
             if let Some((_, b' ')) = iter.next() {
             } else {
-                return Ok("".to_string())
+                return Ok("".to_string());
             }
             let user_id = a[2..a[2..].find(' ').unwrap()].to_string();
-            let index = a[2+user_id.len()..a[2..].find(' ').unwrap()].to_string();
-            let raster = a[3+user_id.len()+index.len()..].as_bytes().to_vec();
-            let _ = request.state().send.lock().unwrap().send(DbEvent::EditPhoto {
-                user: user_id,
-                index: index,
-                photo: raster,
-            });
+            let index = a[2 + user_id.len()..a[2..].find(' ').unwrap()].to_string();
+            let raster = a[3 + user_id.len() + index.len()..].as_bytes().to_vec();
+            let _ = request
+                .state()
+                .send
+                .lock()
+                .unwrap()
+                .send(DbEvent::EditPhoto {
+                    user: user_id,
+                    index: index,
+                    photo: raster,
+                });
         }
         //{} {}" => Delete dinner option (pass (User ID, index))
         a if a.starts_with("d") => {
             let mut iter = a.bytes().enumerate().skip(1);
             if let Some((_, b' ')) = iter.next() {
             } else {
-                return Ok("".to_string())
+                return Ok("".to_string());
             }
             let user_id = a[2..a[2..].find(' ').unwrap()].to_string();
-            let index = a[2+user_id.len()..].to_string();
-            let _ = request.state().send.lock().unwrap().send(DbEvent::DeleteDinner {
-                user: user_id,
-                index: index,
-            });
+            let index = a[2 + user_id.len()..].to_string();
+            let _ = request
+                .state()
+                .send
+                .lock()
+                .unwrap()
+                .send(DbEvent::DeleteDinner {
+                    user: user_id,
+                    index: index,
+                });
         }
         //{} {} {}" => Set rating (pass (User ID, index, rating))
         a if a.starts_with("r") => {
             let mut iter = a.bytes().enumerate().skip(1);
             if let Some((_, b' ')) = iter.next() {
             } else {
-                return Ok("".to_string())
+                return Ok("".to_string());
             }
             let user_id = a[2..a[2..].find(' ').unwrap()].to_string();
-            let index = a[2+user_id.len()..a[2..].find(' ').unwrap()].to_string();
-            let rating = a[3+user_id.len()+index.len()..].to_string();
-            let _ = request.state().send.lock().unwrap().send(DbEvent::SetRating {
-                user: user_id,
-                index,
-                rating,
-            });
+            let index = a[2 + user_id.len()..a[2..].find(' ').unwrap()].to_string();
+            let rating = a[3 + user_id.len() + index.len()..].to_string();
+            let _ = request
+                .state()
+                .send
+                .lock()
+                .unwrap()
+                .send(DbEvent::SetRating {
+                    user: user_id,
+                    index,
+                    rating,
+                });
         }
         //{} {?}" => View analytics (pass (User ID, index?))
         a if a.starts_with("y") => {
             let mut iter = a.bytes().enumerate().skip(1);
             if let Some((_, b' ')) = iter.next() {
             } else {
-                return Ok("".to_string())
+                return Ok("".to_string());
             }
             if let Some(end) = a[2..].find(' ') {
                 let user_id = a[2..end].to_string();
-                let index = a[2+user_id.len()..].to_string();
-                let _ = request.state().send.lock().unwrap().send(DbEvent::ViewAnalytics {
-                    user: user_id,
-                    index: Some(index),
-                });
+                let index = a[2 + user_id.len()..].to_string();
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::ViewAnalytics {
+                        user: user_id,
+                        index: Some(index),
+                    });
             } else {
                 let user_id = a[2..].to_string();
-                let _ = request.state().send.lock().unwrap().send(DbEvent::ViewAnalytics {
-                    user: user_id,
-                    index: None,
-                });
+                let _ = request
+                    .state()
+                    .send
+                    .lock()
+                    .unwrap()
+                    .send(DbEvent::ViewAnalytics {
+                        user: user_id,
+                        index: None,
+                    });
             };
-
         }
         u => eprintln!("Unknown POST: {}", u),
     }
@@ -325,7 +483,8 @@ async fn main() -> Result<(), std::io::Error> {
     let database = std::sync::Arc::new(Database::new());
     let (send, recv) = std::sync::mpsc::channel();
     let server = Server {
-        send: std::sync::Mutex::new(send), database: database.clone()
+        send: std::sync::Mutex::new(send),
+        database: database.clone(),
     };
     std::thread::spawn(move || database_thread(database, recv));
 
