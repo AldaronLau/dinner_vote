@@ -68,6 +68,15 @@ class _MealListPageState extends State<MealListPage> {
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
     }
 
+    void set_votes(String username, String votes) {
+        String body = "z $username\\$votes";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
+            setState(() {
+                get_votes();
+            });
+        });
+    }
+
     void get_votes() {
         String body = "h " + username;
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
@@ -141,7 +150,9 @@ class _MealListPageState extends State<MealListPage> {
         menu_options.add("Vote Mode");
     }
 
-    menu_options.add("Settings");
+    menu_options.add("Set # of Votes");
+
+    // menu_options.add("Settings");
 
     return Scaffold(
       appBar: AppBar(
@@ -193,6 +204,18 @@ class _MealListPageState extends State<MealListPage> {
                                 );
                             },
                         );*/
+                        break;
+                    case "Set # of Votes":
+                        showDialog(
+                            context: context,
+                            builder: (_) => SetVotes(),
+                        ).then((var number) {
+                            if (number != null) {
+                                setState(() {
+                                    set_votes(username, number);
+                                });
+                            }
+                        });
                         break;
                     default:
                         break;
@@ -249,17 +272,20 @@ class _MealListPageState extends State<MealListPage> {
   _editMeal(BuildContext context, Meal meal) async {
     String result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MealPage(meal)),
+      MaterialPageRoute(builder: (context) => MealPage(meal, mode, username)),
     );
-    if (result == 'update' || result == 'delete') {
-      get_dinners();
+    if (result == 'refresh') {
+        get_dinners();
+        get_votes();
     }
   }
 }
 
 class MealPage extends StatefulWidget {
     final Meal meal;
-    MealPage(this.meal);
+    final Mode mode;
+    final String username;
+    MealPage(this.meal, this.mode, this.username);
 
     @override
     State<StatefulWidget> createState() => _MealPageState();
@@ -270,12 +296,16 @@ class _MealPageState extends State<MealPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_screenTitle())),
-      body: MealBody(widget.meal),
+      body: MealBody(widget.meal, widget.mode, widget.username),
     );
   }
 
   String _screenTitle() {
-    return 'Edit Meal';
+    if (widget.mode == Mode.Vote) {
+        return widget.meal.title;
+    } else {
+        return 'Edit Meal';
+    }
   }
 }
 
@@ -283,7 +313,9 @@ class MealBody extends StatefulWidget {
   // This needs to be separate from MealPage to allow
   // SnackBars to work with the Scaffold in MealPage
   final Meal meal;
-  MealBody(this.meal);
+  final Mode mode;
+  final String username;
+  MealBody(this.meal, this.mode, this.username);
 
   @override
   State<StatefulWidget> createState() => _MealBodyState();
@@ -305,25 +337,34 @@ class _MealBodyState extends State<MealBody> {
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> children = [];
+    
+    if (widget.mode == Mode.Vote) {
+        children.add(Text(widget.meal.subtitle));
+    } else {
+        children.add(
+            TextField(
+                controller: _title,
+                decoration: InputDecoration(labelText: 'Title', isDense: true),
+                maxLength: 22,
+            )
+        );
+        children.add(Padding(padding: new EdgeInsets.all(2.0)));
+        children.add(
+            TextField(
+              controller: _description,
+              decoration: InputDecoration(labelText: 'Description', isDense: true),
+              maxLength: 22,
+            ),
+        );
+    }
+    children.add(Padding(padding: new EdgeInsets.all(2.0)));
+    children.add(_buildButtons(context));
+
     return ListView(
       shrinkWrap: true,
       padding: EdgeInsets.all(6.0),
-      children: <Widget>[
-        TextField(
-          controller: _title,
-          decoration: InputDecoration(labelText: 'Title', isDense: true),
-          maxLength: 22,
-        ),
-        Padding(padding: new EdgeInsets.all(2.0)),
-        TextField(
-          controller: _description,
-          decoration: InputDecoration(labelText: 'Description', isDense: true),
-          maxLength: 22,
-        ),
-        Padding(padding: new EdgeInsets.all(2.0)),
-        // _buildChips(widget.meal),
-        _buildButtons(context),
-      ],
+      children: children,
     );
   }
 
@@ -354,35 +395,114 @@ class _MealBodyState extends State<MealBody> {
   }*/
 
   Widget _buildButtons(BuildContext context) {
-    // if (widget.meal.id != null) {
+    if (widget.mode == Mode.Vote) {
+      if (widget.meal.who == null) {
+        return Row(
+          children: <Widget>[
+            Expanded(child: _buildButton(context)),
+          ],
+        );
+      } else if (widget.meal.who == widget.username) {
+        return Row(
+          children: <Widget>[
+            Expanded(child: _buildDeleteButton(context)),
+          ],
+        );
+      } else {
+        return Row(
+          children: <Widget>[],
+        );
+      }
+    } else {
       return Row(
         children: <Widget>[
           Expanded(child: _buildDeleteButton(context)),
           Expanded(child: _buildButton(context)),
         ],
       );
-    /*} else {
-      return _buildButton(context);
-    }*/
+    }
   }
 
   Widget _buildDeleteButton(BuildContext context) {
-    return FlatButton.icon(
-      label: Text('Delete'),
-      icon: Icon(Icons.delete),
-      textColor: Theme.of(context).primaryColorDark,
-      onPressed: () {
-        _deleteMeal(context);
-      },
-    );
+    if (widget.mode == Mode.Vote) {
+        return FlatButton.icon(
+          label: Text('Unvote'),
+          icon: Icon(Icons.undo),
+          textColor: Theme.of(context).primaryColorDark,
+          onPressed: () {
+            _unvoteMeal(context);
+          },
+        );
+    } else {
+        return FlatButton.icon(
+          label: Text('Delete'),
+          icon: Icon(Icons.delete),
+          textColor: Theme.of(context).primaryColorDark,
+          onPressed: () {
+            _deleteMeal(context);
+          },
+        );
+    }
   }
 
+    void rename_dinner(String user, String index, String title, String subtitle) {
+        // Delete Dinner
+        String body = "d $user\\$index";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            // New Dinner
+            String body = "n " + user + "\\" + title;
+            http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+                // Edit description
+                String body = "t $user\\$title\\$subtitle";
+                http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+                    Navigator.pop(context, 'refresh');
+                });
+            });
+        });
+    }
+    
+    void update_dinner(String user, String index, String subtitle) {
+        String body = "t $user\\$index\\$subtitle";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            Navigator.pop(context, 'refresh');
+        });
+    }
+    
+    void delete_dinner(String user, String index) {
+        String body = "d $user\\$index";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            Navigator.pop(context, 'refresh');
+        });
+    }
+    
+    void vote_dinner(String user, String index) {
+        String body = "v $user\\$index";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            Navigator.pop(context, 'refresh');
+        });
+    }
+    
+    void unvote_dinner(String user, String index) {
+        String body = "u $user\\$index";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            Navigator.pop(context, 'refresh');
+        });
+    }
+
   _deleteMeal(BuildContext context) {
-    Navigator.pop(context, 'delete');
+    delete_dinner(widget.username, widget.meal.title);
+  }
+
+  _unvoteMeal(BuildContext context) {
+    unvote_dinner(widget.username, widget.meal.title);
   }
 
   String _buttonTitle() {
-    return 'Update'; // (widget.meal.id != null) ?  : 'Add';
+    if (widget.mode == Mode.Vote) {
+        return 'Vote';
+    } else {
+        return 'Update';
+    }
   }
 
   IconData _buttonIcon() {
@@ -395,7 +515,15 @@ class _MealBodyState extends State<MealBody> {
       icon: Icon(_buttonIcon()),
       textColor: Theme.of(context).primaryColorDark,
       onPressed: () {
-        Navigator.pop(context, 'update');
+        if (widget.mode == Mode.Vote) {
+            vote_dinner(widget.username, widget.meal.title);
+        } else {
+            if (widget.meal.title != _title.text) {
+                rename_dinner(widget.username, widget.meal.title, _title.text, _description.text);
+            } else {
+                update_dinner(widget.username, widget.meal.title, _description.text);
+            }
+        }
       },
     );
   }
@@ -568,6 +696,55 @@ class SortDinnersState extends State<SortDinners> {
                     child: Text("Votes"),
                 ),
             ]),
+        );
+    }
+}
+
+class SetVotes extends StatefulWidget {
+    SetVotes({Key key}): super(key: key);
+
+    @override
+    SetVotesState createState() { return new SetVotesState(); }
+}
+
+class SetVotesState extends State<SetVotes> {
+    TextEditingController text_controller;
+
+    @override
+    void initState() {
+        super.initState();
+        text_controller = TextEditingController(text: "");
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return new AlertDialog(
+            title: const Text('Set # of Votes:'),
+            content: TextField(controller: text_controller,
+                toolbarOptions: ToolbarOptions(
+                    copy: false, cut: false, paste: false, selectAll: false
+                ),
+                autofocus: true,
+                maxLength: 22),
+            actions: <Widget>[
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                        FlatButton(
+                            onPressed: () {
+                                Navigator.of(context).pop(null);
+                            },
+                            child: Text("Cancel"),
+                        ),
+                        FlatButton(
+                            onPressed: () {
+                                Navigator.of(context).pop(text_controller.text);
+                            },
+                            child: Text("Set Count"),
+                        ),
+                    ]
+                ),
+            ],
         );
     }
 }
