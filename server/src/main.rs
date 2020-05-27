@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // A dinner option
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Dinner {
     // Short description
     short: String,
@@ -15,7 +15,7 @@ struct Dinner {
 }
 
 // A person
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct Person {
     // Number of votes.
     votes: u16,
@@ -24,12 +24,66 @@ struct Person {
 }
 
 // Database of dinners & votes
-#[derive(Serialize, Deserialize, Debug)]
 struct DatabaseData {
     // Key is dinner name,
     dinners: HashMap<String, Dinner>,
     // Key is person name
     people: HashMap<String, Person>,
+}
+
+impl DatabaseData {
+    fn from_serde(database_data: DatabaseDataSerde) -> Self {
+        let mut dinners = HashMap::new();
+        let mut people = HashMap::new();
+        
+        for dinner in database_data.dinners {
+            dinners.insert(dinner.key, dinner.value);
+        }
+        
+        for person in database_data.people {
+            people.insert(person.key, person.value);
+        }
+
+        Self {
+            dinners,
+            people,
+        }
+    }
+
+    fn to_serde(&self) -> DatabaseDataSerde {
+        let mut dinners = Vec::new();
+        let mut people = Vec::new();
+        
+        for (key, value) in self.dinners.clone() {
+            dinners.push(DinnerKV { key, value });
+        }
+        
+        for (key, value) in self.people.clone() {
+            people.push(PersonKV { key, value });
+        }
+        
+        DatabaseDataSerde {
+            dinners, people
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DinnerKV {
+    key: String,
+    value: Dinner,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct PersonKV {
+    key: String,
+    value: Person,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DatabaseDataSerde {
+    dinners: Vec<DinnerKV>,
+    people: Vec<PersonKV>,
 }
 
 // A "database"
@@ -40,7 +94,7 @@ struct Database {
 impl Database {
     fn new() -> Self {
         let data: std::sync::Mutex<DatabaseData> = if std::path::Path::new("database").exists() {
-            std::sync::Mutex::new(muon_rs::from_slice(&std::fs::read("database").unwrap()).unwrap())
+            std::sync::Mutex::new(DatabaseData::from_serde(muon_rs::from_slice(&std::fs::read("database").unwrap()).unwrap()))
         } else {
             std::sync::Mutex::new(DatabaseData {
                 dinners: HashMap::new(),
@@ -52,9 +106,13 @@ impl Database {
     }
 
     fn update<F: FnOnce(&mut DatabaseData)>(&self, closure: F) {
-        closure(&mut self.data.lock().unwrap());
+        let data = {
+            let data = &mut self.data.lock().unwrap();
+            closure(data);
+            DatabaseData::to_serde(data)
+        };
 
-        let encoded: Vec<u8> = muon_rs::to_vec(&self.data).unwrap();
+        let encoded: Vec<u8> = muon_rs::to_vec(&data).unwrap();
 
         // Create temp file
         std::fs::write("temp", encoded).unwrap();
@@ -159,54 +217,81 @@ fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Re
                     }
                 });
             }
-            DbEvent::ViewVotes { name } => {}
+            DbEvent::ViewVotes { name } => {
+                // FIXME
+                let _ = name;
+            }
             DbEvent::NewDinner { user, name } => {
                 database.update(|db| {
-                    // Add person if they're not already in the system.
-                    if db.dinners.get(&name).is_none() {
-                        db.dinners.insert(
-                            name,
-                            Dinner {
-                                short: "Short description".to_string(),
-                                long: "Long description".to_string(),
-                                photo: None,
-                                vote: None,
-                            },
-                        );
+                    // Add dinner if it's not already in the system.
+                    if let Some(person) = db.people.get(&user) {
+                        if person.admin {
+                            if db.dinners.get(&name).is_none() {
+                                db.dinners.insert(
+                                    name,
+                                    Dinner {
+                                        short: "Short description".to_string(),
+                                        long: "Long description".to_string(),
+                                        photo: None,
+                                        vote: None,
+                                    },
+                                );
+                            }
+                        }
                     }
                 });
             }
             DbEvent::EditShortname { user, index, name } => {
                 database.update(|db| {
-                    if let Some(value) = db.dinners.remove(&index) {
-                        db.dinners.insert(name, value);
+                    if let Some(person) = db.people.get(&user) {
+                        if person.admin {
+                            if let Some(value) = db.dinners.remove(&index) {
+                                db.dinners.insert(name, value);
+                            }
+                        }
                     }
                 });
             }
             DbEvent::EditLongname { user, index, name } => {
                 database.update(|db| {
-                    if let Some(dinner) = db.dinners.get_mut(&index) {
-                        dinner.short = name;
+                    if let Some(person) = db.people.get(&user) {
+                        if person.admin {
+                            if let Some(dinner) = db.dinners.get_mut(&index) {
+                                dinner.short = name;
+                            }
+                        }
                     }
                 });
             }
             DbEvent::EditDetails { user, index, name } => {
                 database.update(|db| {
-                    if let Some(dinner) = db.dinners.get_mut(&index) {
-                        dinner.long = name;
+                    if let Some(person) = db.people.get(&user) {
+                        if person.admin {
+                            if let Some(dinner) = db.dinners.get_mut(&index) {
+                                dinner.long = name;
+                            }
+                        }
                     }
                 });
             }
             DbEvent::EditPhoto { user, index, photo } => {
+                let _ = user;
+                let _ = index;
+                let _ = photo;
                 database.update(|db| {
                     // FIXME
+                    let _ = db;
                 });
             }
             DbEvent::DeleteDinner { user, index } => {
                 database.update(|db| {
-                    database.update(|db| {
-                        db.dinners.remove(&index);
-                    });
+                    if let Some(person) = db.people.get(&user) {
+                        if person.admin {
+                            database.update(|db| {
+                                db.dinners.remove(&index);
+                            });
+                        }
+                    }
                 });
             }
             DbEvent::SetRating {
@@ -214,11 +299,18 @@ fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Re
                 index,
                 rating,
             } => {
+                let _ = user;
+                let _ = index;
+                let _ = rating;
                 database.update(|db| {
                     // FIXME
+                    let _ = db;
                 });
             }
-            DbEvent::ViewAnalytics { user, index } => {}
+            DbEvent::ViewAnalytics { user, index } => {
+                let _ = user;
+                let _ = index;
+            }
         }
     }
 }
