@@ -6,6 +6,11 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 // import 'db.dart';
 
+enum Mode {
+    Vote,
+    Edit,
+}
+
 class MealListPage extends StatefulWidget {
     final GlobalKey appKey;
     final LocalStorage storage;
@@ -21,6 +26,33 @@ class _MealListPageState extends State<MealListPage> {
     
     String username = null;
     int votes = 0;
+    Mode mode = Mode.Vote;
+
+    void sort_dinners(String by) {
+        switch (by) {
+            case "Alphabetical":
+                _dinners.sort((a, b) {
+                    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+                });
+                break;
+            case "Votes":
+                _dinners.sort((a, b) {
+                    if (a.who == null) {
+                        if (b.who != null) {
+                            return 1;
+                        }
+                    } else {
+                        if (b.who == null) {
+                            return -1;
+                        }
+                    }
+                    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+                });
+                break;
+            default:
+                break;
+        }
+    }
 
     void create_user(String user) {
         widget.storage.writeName(user);
@@ -29,13 +61,13 @@ class _MealListPageState extends State<MealListPage> {
             get_votes();
         });
     }
-    
+
     void create_dinner(String title) {
         String body = "n " + username + "\\" + title;
         print("Posting:" + body);
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
     }
-    
+
     void get_votes() {
         String body = "h " + username;
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
@@ -56,8 +88,13 @@ class _MealListPageState extends State<MealListPage> {
                 items.forEach((item) {
                     print('item: ' + item);
                     List<String> parts = item.split("\\");
-                    _dinners.add(Meal(parts[0], parts[1]));
+                    if (parts.length == 3) {
+                        _dinners.add(Meal(parts[0], parts[1], parts[2]));
+                    } else {
+                        _dinners.add(Meal(parts[0], parts[1], null));
+                    }
                 });
+                sort_dinners("Votes");
             });
         });
     }
@@ -85,8 +122,6 @@ class _MealListPageState extends State<MealListPage> {
                 });
             }
         });
-        
-        _loadMeals();
     }
 
   @override
@@ -98,7 +133,15 @@ class _MealListPageState extends State<MealListPage> {
         title = Text('MealVote: $username ($votes votes)');
     }
 
-    List<String> menu_options = ["New Dinner…", "Settings"];
+    List<String> menu_options = ["New Dinner…", "Sort…"];
+
+    if (mode == Mode.Vote) {
+        menu_options.add("Edit Mode");
+    } else {
+        menu_options.add("Vote Mode");
+    }
+
+    menu_options.add("Settings");
 
     return Scaffold(
       appBar: AppBar(
@@ -118,18 +161,38 @@ class _MealListPageState extends State<MealListPage> {
                             });
                         });
                         break;
-                    case "Settings":
+                    case "Edit Mode":
+                        setState(() {
+                            mode = Mode.Edit;
+                        });
+                        break;
+                    case "Vote Mode":
+                        setState(() {
+                            mode = Mode.Vote;
+                        });
+                        break;
+                    case "Sort…":
                         showDialog(
                             context: context,
+                            builder: (_) => SortDinners(),
+                        ).then((var by) {
+                            setState(() {
+                                sort_dinners(by);
+                            });
+                        });
+                        break;
+                    case "Settings":
+                        /*showDialog(
+                            context: context,
                             builder: (_) {
-                                /*Navigator.push(
+                                Navigator.push(
                                     context,
                                     MaterialPageRoute(builder: (context) {
                                         return SelectFolder(mode: FolderMode.Move);
                                     }),
-                                );*/
+                                );
                             },
-                        );
+                        );*/
                         break;
                     default:
                         break;
@@ -149,7 +212,7 @@ class _MealListPageState extends State<MealListPage> {
       body: _buildBody(),
       /*floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () => _createMeal(context),
+        onPressed: () => {},
       ),*/
     );
   }
@@ -164,36 +227,23 @@ class _MealListPageState extends State<MealListPage> {
   }
 
   Widget _buildRow(Meal meal) {
+    String meal_title = meal.title;
+    String who = meal.who;
+    String title;
+    if (who == null) {
+        title = "$meal_title";
+    } else {
+        title = "$meal_title ($who)";
+    }
+  
     return ListTile(
       title: Text(
-        meal.title,
+        title,
         style: Theme.of(context).textTheme.title,
       ),
       subtitle: Text(meal.subtitle),
       onTap: () => _editMeal(context, meal),
     );
-  }
-
-  _createMeal(BuildContext context) async {
-    String result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MealPage(Meal("", ""))),
-    );
-    if (result == 'save') {
-      _loadMeals();
-    }
-  }
-
-  _loadMeals() async {
-    print("LOAFAF");
-    /*_db.getAllMeals().then((meals) {
-      setState(() {
-        _dinners.clear();
-        meals.forEach((meal) {
-          _dinners.add(Meal.fromMap(meal));
-        });
-      });
-    });*/
   }
 
   _editMeal(BuildContext context, Meal meal) async {
@@ -202,7 +252,7 @@ class _MealListPageState extends State<MealListPage> {
       MaterialPageRoute(builder: (context) => MealPage(meal)),
     );
     if (result == 'update' || result == 'delete') {
-      _loadMeals();
+      get_dinners();
     }
   }
 }
@@ -328,9 +378,7 @@ class _MealBodyState extends State<MealBody> {
   }
 
   _deleteMeal(BuildContext context) {
-    /*db.deleteMeal(widget.meal.id).then((_) {
-      Navigator.pop(context, 'delete');
-    });*/
+    Navigator.pop(context, 'delete');
   }
 
   String _buttonTitle() {
@@ -347,11 +395,7 @@ class _MealBodyState extends State<MealBody> {
       icon: Icon(_buttonIcon()),
       textColor: Theme.of(context).primaryColorDark,
       onPressed: () {
-        /*if (widget.meal.id != null) {
-          _updateMeal(context);
-        } else {
-          _saveMeal(context);
-        }*/
+        Navigator.pop(context, 'update');
       },
     );
   }
@@ -362,33 +406,6 @@ class _MealBodyState extends State<MealBody> {
 
   String _getDescription() {
     return _description.text.trim();
-  }
-
-  _updateMeal(BuildContext context) {
-    /*db
-        .updateMeal(Meal.fromMap({
-      'id': widget.meal.id,
-      'title': _getTitle(),
-      'description': _getDescription(),
-    }))
-        .then((_) {
-      Navigator.pop(context, 'update');
-    }).catchError((e) {
-      final snackBar = SnackBar(content: Text('Title must be unique'));
-      Scaffold.of(context).showSnackBar(snackBar);
-    });*/
-  }
-
-  _saveMeal(BuildContext context) {
-    final title = _getTitle();
-    if (title.length == 0)
-      return;
-    /*db.saveMeal(Meal(title, _getDescription())).then((_) {
-      Navigator.pop(context, 'save');
-    }).catchError((e) {
-      final snackBar = SnackBar(content: Text('Title must be unique'));
-      Scaffold.of(context).showSnackBar(snackBar);
-    });*/
   }
 }
 
@@ -516,6 +533,41 @@ class NewDinnerState extends State<NewDinner> {
                     ]
                 ),
             ],
+        );
+    }
+}
+
+class SortDinners extends StatefulWidget {
+    SortDinners({Key key}): super(key: key);
+
+    @override
+    SortDinnersState createState() { return new SortDinnersState(); }
+}
+
+class SortDinnersState extends State<SortDinners> {
+    @override
+    void initState() {
+        super.initState();
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return new AlertDialog(
+            title: const Text('Sort by:'),
+            content: Column(children: <Widget>[
+                FlatButton(
+                    onPressed: () {
+                        Navigator.of(context).pop("Alphabetical");
+                    },
+                    child: Text("Alphabetical"),
+                ),
+                FlatButton(
+                    onPressed: () {
+                        Navigator.of(context).pop("Votes");
+                    },
+                    child: Text("Votes"),
+                ),
+            ]),
         );
     }
 }
