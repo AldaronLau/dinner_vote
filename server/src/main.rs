@@ -220,7 +220,7 @@ fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Re
                 database.update(|db| {
                     if let Some(person) = db.people.get_mut(&user) {
                         if let Some(dinner) = db.dinners.get_mut(&index) {
-                            if dinner.vote == Some(user) {
+                            if dinner.vote == Some(user) || person.admin {
                                 dinner.vote = None;
                                 if !person.admin {
                                     person.votes += 1;
@@ -609,6 +609,12 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
                     let string = format!("{}", person.votes);
                     println!("Get #VOTES {}", person.votes);
                     out.push_str(&string);
+                    out.push('\\');
+                    out.push_str(if person.admin {
+                        "TRUE"
+                    } else {
+                        "FALSE"
+                    });
                 }
             }
         }

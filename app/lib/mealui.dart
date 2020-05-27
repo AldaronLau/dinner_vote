@@ -27,6 +27,7 @@ class _MealListPageState extends State<MealListPage> {
     String username = null;
     int votes = 0;
     Mode mode = Mode.Vote;
+    bool admin = false;
 
     void sort_dinners(String by) {
         switch (by) {
@@ -81,8 +82,9 @@ class _MealListPageState extends State<MealListPage> {
         String body = "h " + username;
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
             setState(() {
-                print(resp.body);
-                votes = int.parse(resp.body);
+                List<String> parts = resp.body.split("\\");
+                votes = int.parse(parts[0]);
+                admin = parts[1] == 'TRUE';
             });
         });
     }
@@ -138,19 +140,25 @@ class _MealListPageState extends State<MealListPage> {
     Text title;
     if (username == null) {
         title = Text('Loading MealVote…');
+    } else if (admin == true) {
+        title = Text('$username(Cook $votes votes)');
     } else {
-        title = Text('MealVote: $username ($votes votes)');
+        title = Text('$username($votes votes)');
     }
 
-    List<String> menu_options = ["New Dinner…", "Sort…"];
+    List<String> menu_options = ["Sort…"];
 
-    if (mode == Mode.Vote) {
-        menu_options.add("Edit Mode");
-    } else {
-        menu_options.add("Vote Mode");
+    if (admin) {
+        menu_options.add("New Dinner…");
+
+        if (mode == Mode.Vote) {
+            menu_options.add("Edit Mode");
+        } else {
+            menu_options.add("Vote Mode");
+        }
+
+        menu_options.add("Set # of Votes");
     }
-
-    menu_options.add("Set # of Votes");
 
     // menu_options.add("Settings");
 
@@ -272,7 +280,7 @@ class _MealListPageState extends State<MealListPage> {
   _editMeal(BuildContext context, Meal meal) async {
     String result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MealPage(meal, mode, username)),
+      MaterialPageRoute(builder: (context) => MealPage(meal, mode, username, admin)),
     );
     if (result == 'refresh') {
         get_dinners();
@@ -285,7 +293,8 @@ class MealPage extends StatefulWidget {
     final Meal meal;
     final Mode mode;
     final String username;
-    MealPage(this.meal, this.mode, this.username);
+    final bool admin;
+    MealPage(this.meal, this.mode, this.username, this.admin);
 
     @override
     State<StatefulWidget> createState() => _MealPageState();
@@ -296,7 +305,7 @@ class _MealPageState extends State<MealPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_screenTitle())),
-      body: MealBody(widget.meal, widget.mode, widget.username),
+      body: MealBody(widget.meal, widget.mode, widget.username, widget.admin),
     );
   }
 
@@ -315,7 +324,8 @@ class MealBody extends StatefulWidget {
   final Meal meal;
   final Mode mode;
   final String username;
-  MealBody(this.meal, this.mode, this.username);
+  final bool admin;
+  MealBody(this.meal, this.mode, this.username, this.admin);
 
   @override
   State<StatefulWidget> createState() => _MealBodyState();
@@ -402,7 +412,7 @@ class _MealBodyState extends State<MealBody> {
             Expanded(child: _buildButton(context)),
           ],
         );
-      } else if (widget.meal.who == widget.username) {
+      } else if (widget.meal.who == widget.username || widget.admin) {
         return Row(
           children: <Widget>[
             Expanded(child: _buildDeleteButton(context)),
@@ -424,9 +434,15 @@ class _MealBodyState extends State<MealBody> {
   }
 
   Widget _buildDeleteButton(BuildContext context) {
+    String text_label;
+    if (widget.admin) {
+        text_label = "Made!";
+    } else {
+        text_label = "Unvote";
+    }
     if (widget.mode == Mode.Vote) {
         return FlatButton.icon(
-          label: Text('Unvote'),
+          label: Text(text_label),
           icon: Icon(Icons.undo),
           textColor: Theme.of(context).primaryColorDark,
           onPressed: () {
