@@ -567,6 +567,27 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
                     });
             };
         }
+        //{}" => View all votes (pass User ID)
+        a if a.starts_with("h") => {
+            println!("HHHHHHHHHH");
+            let args = a.split(' ');
+            if let Some(user_id) = args.skip(1).next() {
+                println!("{}", user_id);
+                if let Some(person) = request
+                    .state()
+                    .database
+                    .data
+                    .lock()
+                    .unwrap()
+                    .people
+                    .get(user_id)
+                {
+                    let string = format!("{}", person.votes);
+                    println!("Get #VOTES {}", person.votes);
+                    out.push_str(&string);
+                }
+            }
+        }
         u => eprintln!("Unknown POST: {}", u),
     }
 

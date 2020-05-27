@@ -18,5 +18,6 @@ The app `POST`s to `/meal_vote` to communicate.
 - "d {} {}" => Delete dinner option (pass (User ID, index))
 - "r {} {} {}" => Set rating (pass (User ID, index, rating))
 - "y {} {?}" => View analytics (pass (User ID, index?))
+- "h {}" => Get number of votes (pass (User ID))
 
 

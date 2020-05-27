@@ -20,17 +20,30 @@ class _MealListPageState extends State<MealListPage> {
     final _dinners = new List<Meal>();
     
     String username = null;
+    int votes = 0;
 
     void create_user(String user) {
         widget.storage.writeName(user);
         String body = "c " + user;
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            get_votes();
+        });
     }
     
     void create_dinner(String title) {
         String body = "n " + username + "\\" + title;
         print("Posting:" + body);
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
+    }
+    
+    void get_votes() {
+        String body = "h " + username;
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
+            setState(() {
+                print(resp.body);
+                votes = int.parse(resp.body);
+            });
+        });
     }
 
     void get_dinners() {
@@ -68,6 +81,7 @@ class _MealListPageState extends State<MealListPage> {
             } else {
                 setState(() {
                     username = name;
+                    get_votes();
                 });
             }
         });
@@ -81,7 +95,7 @@ class _MealListPageState extends State<MealListPage> {
     if (username == null) {
         title = Text('Loading MealVote…');
     } else {
-        title = Text('MealVote: ' + username);
+        title = Text('MealVote: $username ($votes votes)');
     }
 
     List<String> menu_options = ["New Dinner…", "Settings"];
@@ -133,10 +147,10 @@ class _MealListPageState extends State<MealListPage> {
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
+      /*floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
         onPressed: () => _createMeal(context),
-      ),
+      ),*/
     );
   }
 
