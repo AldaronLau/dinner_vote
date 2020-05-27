@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 // import 'db.dart';
 
 class MealListPage extends StatefulWidget {
-    final GlobalKey<DinnerVoteAppState> appKey;
+    final GlobalKey appKey;
     final LocalStorage storage;
 
     MealListPage(appKey, {@required this.storage}) : appKey = appKey;
@@ -27,9 +27,21 @@ class _MealListPageState extends State<MealListPage> {
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
     }
 
+    void get_dinners() {
+        String body = "l";
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
+            _dinners.clear();
+            _dinners.add(Meal("ChickEN!", "short desc.", "looong dsc"));
+
+            print(resp.body);
+            // Do something with the response.
+        });
+    }
+
     @override
     void initState() {
         super.initState();
+        get_dinners();
         // Read name from file, or make user set name.
         widget.storage.readName().then((String name) {
             if (name == null) {
@@ -54,10 +66,15 @@ class _MealListPageState extends State<MealListPage> {
 
   @override
   Widget build(BuildContext context) {
+    Text title;
+    if (username == null) {
+        title = Text('Loading MealVote…');
+    } else {
+        title = Text('MealVote: ' + username);
+    }
+  
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Dinner Vote: Meals'),
-      ),
+      appBar: AppBar(title: title),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
@@ -72,7 +89,7 @@ class _MealListPageState extends State<MealListPage> {
         itemCount: _dinners.length,
         itemBuilder: (context, i) {
           return _buildRow(_dinners[i]);
-        });
+    });
   }
 
   Widget _buildRow(Meal meal) {
@@ -81,7 +98,7 @@ class _MealListPageState extends State<MealListPage> {
         meal.title,
         style: Theme.of(context).textTheme.title,
       ),
-      subtitle: Text(meal.description),
+      subtitle: Text(meal.subtitle),
       onTap: () => _editMeal(context, meal),
     );
   }
@@ -89,7 +106,7 @@ class _MealListPageState extends State<MealListPage> {
   _createMeal(BuildContext context) async {
     String result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MealPage(Meal("", ""))),
+      MaterialPageRoute(builder: (context) => MealPage(Meal("", "", ""))),
     );
     if (result == 'save') {
       _loadMeals();
@@ -97,6 +114,7 @@ class _MealListPageState extends State<MealListPage> {
   }
 
   _loadMeals() async {
+    print("LOAFAF");
     /*_db.getAllMeals().then((meals) {
       setState(() {
         _dinners.clear();

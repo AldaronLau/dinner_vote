@@ -4,7 +4,7 @@ import 'person.dart';
 // import 'db.dart';
 
 class PersonListPage extends StatefulWidget {
-  final GlobalKey<DinnerVoteAppState> appKey;
+  final GlobalKey appKey;
 
   PersonListPage(appKey) : appKey = appKey;
 
@@ -28,7 +28,7 @@ class _PersonListPageState extends State<PersonListPage> {
       appBar: AppBar(
         title: Text('Dinner Vote: People'),
       ),
-      drawer: widget.appKey.currentState.getDrawer(context),
+      // drawer: widget.appKey.currentState.getDrawer(context),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.person_add),

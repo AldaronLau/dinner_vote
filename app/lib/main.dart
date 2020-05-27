@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(MyApp());
 
-final key = GlobalKey<DinnerVoteAppState>();
+final key = GlobalKey();
 
 class MyApp extends StatelessWidget {
     @override
@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
     }
 }
 
-class DinnerVoteApp extends StatefulWidget {
+/*class DinnerVoteApp extends StatefulWidget {
     final LocalStorage storage;
 
     DinnerVoteApp({@required this.storage}): super(key: key);
@@ -63,14 +63,6 @@ class DinnerVoteAppState extends State<DinnerVoteApp> {
         super.initState();
     }
   
-    void get_dinners() {
-        String body = "l";
-        http.post('192.168.0.111:8080/meal_vote', body: body).then((resp) => {
-            print(resp.body)
-            // Do something with the response.
-        });
-    }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -117,4 +109,4 @@ class DinnerVoteAppState extends State<DinnerVoteApp> {
     setState(() => item = items[index]);
     Navigator.of(context).pop();
   }
-}
+}*/
