@@ -230,8 +230,8 @@ fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Re
                                 db.dinners.insert(
                                     name,
                                     Dinner {
-                                        short: "Short description".to_string(),
-                                        long: "Long description".to_string(),
+                                        short: "-".to_string(),
+                                        long: "-".to_string(),
                                         photo: None,
                                         vote: None,
                                     },
@@ -330,14 +330,15 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
     match post {
         // Get entire list of dinner options
         a if a.starts_with("l") => {
-            for key in (*request.state().database.data.lock().unwrap())
-                .dinners
-                .keys()
+            for (key, value) in (*request.state().database.data.lock().unwrap())
+                .dinners.iter()
             {
-                out.push_str(key);
-                out.push('\r');
+                out.push_str(&key);
+                out.push('\\');
+                out.push_str(&value.short);
+                out.push('\n');
             }
-            out.push('\r');
+            out.pop();
         }
         // Get details for a specific dinner option (pass index)
         a if a.starts_with("g") => {
@@ -398,17 +399,19 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
         }
         //{} {}" => New dinner option (pass (User ID, Shortname))
         a if a.starts_with("n") => {
-            let mut args = a.split(' ').skip(1);
-            if let Some((user, name)) = args.next().and_then(|a| Some((a, args.next()?))) {
+            println!("NEW DINNER OPTION");
+            if let Some(split_index) = a[2..].find('\\') {
+                let user = a[2..2+split_index].to_string();
+                let name = a[(2+split_index + 1)..].to_string();
+
+                println!("SENDING: {} {}", user, name);
+
                 let _ = request
                     .state()
                     .send
                     .lock()
                     .unwrap()
-                    .send(DbEvent::NewDinner {
-                        user: user.to_string(),
-                        name: name.to_string(),
-                    });
+                    .send(DbEvent::NewDinner { user, name });
             }
         }
         //{} {} {}" => Edit shortname (pass (User ID, index, Shortname))

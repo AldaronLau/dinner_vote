@@ -26,15 +26,26 @@ class _MealListPageState extends State<MealListPage> {
         String body = "c " + user;
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
     }
+    
+    void create_dinner(String title) {
+        String body = "n " + username + "\\" + title;
+        print("Posting:" + body);
+        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
+    }
 
     void get_dinners() {
         String body = "l";
         http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
-            _dinners.clear();
-            _dinners.add(Meal("ChickEN!", "short desc.", "looong dsc"));
+            setState(() {
+                List<String> items = resp.body.split("\n");
 
-            print(resp.body);
-            // Do something with the response.
+                _dinners.clear();
+                items.forEach((item) {
+                    print('item: ' + item);
+                    List<String> parts = item.split("\\");
+                    _dinners.add(Meal(parts[0], parts[1]));
+                });
+            });
         });
     }
 
@@ -72,9 +83,55 @@ class _MealListPageState extends State<MealListPage> {
     } else {
         title = Text('MealVote: ' + username);
     }
-  
+
+    List<String> menu_options = ["New Dinner…", "Settings"];
+
     return Scaffold(
-      appBar: AppBar(title: title),
+      appBar: AppBar(
+        title: title,
+        actions: <Widget>[
+          PopupMenuButton<String>(
+            onSelected: (String choice) {
+                switch (choice) {
+                    case "New Dinner…":
+                        showDialog(
+                            context: context,
+                            builder: (_) => NewDinner(),
+                        ).then((var name) {
+                            setState(() {
+                                create_dinner(name);
+                                get_dinners();
+                            });
+                        });
+                        break;
+                    case "Settings":
+                        showDialog(
+                            context: context,
+                            builder: (_) {
+                                /*Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) {
+                                        return SelectFolder(mode: FolderMode.Move);
+                                    }),
+                                );*/
+                            },
+                        );
+                        break;
+                    default:
+                        break;
+                }
+            },
+            itemBuilder: (BuildContext context) {
+                return menu_options.map((String choice) {
+                    return PopupMenuItem<String>(
+                        value: choice,
+                        child: Text(choice),
+                    );
+                }).toList();
+            }
+          )
+        ],
+      ),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
@@ -106,7 +163,7 @@ class _MealListPageState extends State<MealListPage> {
   _createMeal(BuildContext context) async {
     String result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MealPage(Meal("", "", ""))),
+      MaterialPageRoute(builder: (context) => MealPage(Meal("", ""))),
     );
     if (result == 'save') {
       _loadMeals();
@@ -154,7 +211,7 @@ class _MealPageState extends State<MealPage> {
   }
 
   String _screenTitle() {
-    return (widget.meal.id != null) ? 'Edit Meal' : 'Add Meal';
+    return 'Edit Meal';
   }
 }
 
@@ -179,7 +236,7 @@ class _MealBodyState extends State<MealBody> {
     super.initState();
 
     _title = new TextEditingController(text: widget.meal.title);
-    _description = new TextEditingController(text: widget.meal.description);
+    _description = new TextEditingController(text: widget.meal.subtitle);
   }
 
   @override
@@ -200,13 +257,13 @@ class _MealBodyState extends State<MealBody> {
           maxLength: 22,
         ),
         Padding(padding: new EdgeInsets.all(2.0)),
-        _buildChips(widget.meal),
+        // _buildChips(widget.meal),
         _buildButtons(context),
       ],
     );
   }
 
-  Widget _buildChips(Meal meal) {
+  /*Widget _buildChips(Meal meal) {
     return Wrap(
       spacing: 6.0,
       runSpacing: 4.0,
@@ -216,12 +273,12 @@ class _MealBodyState extends State<MealBody> {
         _buildChip(meal, 'Mexican'),
       ],
     );
-  }
+  }*/
 
-  Widget _buildChip(Meal meal, String lbl) {
+  /*Widget _buildChip(Meal meal, String lbl) {
     return FilterChip(
       selectedColor: Theme.of(context).accentColor,
-      selected: meal.hasTag(lbl),
+      selected: false, // meal.hasTag(lbl),
       label: Text(lbl),
       onSelected: (bool value) {
         setState(() {
@@ -230,19 +287,19 @@ class _MealBodyState extends State<MealBody> {
         });
       },
     );
-  }
+  }*/
 
   Widget _buildButtons(BuildContext context) {
-    if (widget.meal.id != null) {
+    // if (widget.meal.id != null) {
       return Row(
         children: <Widget>[
           Expanded(child: _buildDeleteButton(context)),
           Expanded(child: _buildButton(context)),
         ],
       );
-    } else {
+    /*} else {
       return _buildButton(context);
-    }
+    }*/
   }
 
   Widget _buildDeleteButton(BuildContext context) {
@@ -263,11 +320,11 @@ class _MealBodyState extends State<MealBody> {
   }
 
   String _buttonTitle() {
-    return (widget.meal.id != null) ? 'Update' : 'Add';
+    return 'Update'; // (widget.meal.id != null) ?  : 'Add';
   }
 
   IconData _buttonIcon() {
-    return (widget.meal.id != null) ? Icons.done : Icons.add_circle;
+    return Icons.done; // (widget.meal.id != null) ?  : Icons.add_circle;
   }
 
   Widget _buildButton(BuildContext context) {
@@ -276,11 +333,11 @@ class _MealBodyState extends State<MealBody> {
       icon: Icon(_buttonIcon()),
       textColor: Theme.of(context).primaryColorDark,
       onPressed: () {
-        if (widget.meal.id != null) {
+        /*if (widget.meal.id != null) {
           _updateMeal(context);
         } else {
           _saveMeal(context);
-        }
+        }*/
       },
     );
   }
@@ -397,5 +454,54 @@ class LocalStorage {
 
         // Write the file
         return file.writeAsString('$name');
+    }
+}
+
+class NewDinner extends StatefulWidget {
+    NewDinner({Key key}): super(key: key);
+
+    @override
+    NewDinnerState createState() { return new NewDinnerState(); }
+}
+
+class NewDinnerState extends State<NewDinner> {
+    TextEditingController text_controller;
+
+    @override
+    void initState() {
+        super.initState();
+        text_controller = TextEditingController(text: "");
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return new AlertDialog(
+            title: const Text('New Dinner Option:'),
+            content: TextField(controller: text_controller,
+                toolbarOptions: ToolbarOptions(
+                    copy: false, cut: false, paste: false, selectAll: false
+                ),
+                autofocus: true,
+                maxLength: 22),
+            actions: <Widget>[
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                        FlatButton(
+                            onPressed: () {
+                                Navigator.of(context).pop("");
+                            },
+                            child: Text("Cancel"),
+                        ),
+                        FlatButton(
+                            onPressed: () {
+                                Navigator.of(context).pop(text_controller.text);
+                            },
+                            child: Text("Create"),
+                        ),
+                    ]
+                ),
+            ],
+        );
     }
 }
