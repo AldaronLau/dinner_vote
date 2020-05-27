@@ -58,7 +58,7 @@ class _MealListPageState extends State<MealListPage> {
     void create_user(String user) {
         widget.storage.writeName(user);
         String body = "c " + user;
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
             get_votes();
         });
     }
@@ -66,12 +66,12 @@ class _MealListPageState extends State<MealListPage> {
     void create_dinner(String title) {
         String body = "n " + username + "\\" + title;
         print("Posting:" + body);
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) => {});
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) => {});
     }
 
     void set_votes(String username, String votes) {
         String body = "z $username\\$votes";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((resp) {
             setState(() {
                 get_votes();
             });
@@ -80,7 +80,7 @@ class _MealListPageState extends State<MealListPage> {
 
     void get_votes() {
         String body = "h " + username;
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((resp) {
             setState(() {
                 List<String> parts = resp.body.split("\\");
                 votes = int.parse(parts[0]);
@@ -91,7 +91,7 @@ class _MealListPageState extends State<MealListPage> {
 
     void get_dinners() {
         String body = "l";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((resp) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((resp) {
             setState(() {
                 List<String> items = resp.body.split("\n");
 
@@ -356,7 +356,6 @@ class _MealBodyState extends State<MealBody> {
             TextField(
                 controller: _title,
                 decoration: InputDecoration(labelText: 'Title', isDense: true),
-                maxLength: 22,
             )
         );
         children.add(Padding(padding: new EdgeInsets.all(2.0)));
@@ -364,7 +363,6 @@ class _MealBodyState extends State<MealBody> {
             TextField(
               controller: _description,
               decoration: InputDecoration(labelText: 'Description', isDense: true),
-              maxLength: 22,
             ),
         );
     }
@@ -464,13 +462,13 @@ class _MealBodyState extends State<MealBody> {
     void rename_dinner(String user, String index, String title, String subtitle) {
         // Delete Dinner
         String body = "d $user\\$index";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
             // New Dinner
             String body = "n " + user + "\\" + title;
-            http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+            http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
                 // Edit description
                 String body = "t $user\\$title\\$subtitle";
-                http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+                http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
                     Navigator.pop(context, 'refresh');
                 });
             });
@@ -479,28 +477,28 @@ class _MealBodyState extends State<MealBody> {
     
     void update_dinner(String user, String index, String subtitle) {
         String body = "t $user\\$index\\$subtitle";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
             Navigator.pop(context, 'refresh');
         });
     }
     
     void delete_dinner(String user, String index) {
         String body = "d $user\\$index";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
             Navigator.pop(context, 'refresh');
         });
     }
     
     void vote_dinner(String user, String index) {
         String body = "v $user\\$index";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
             Navigator.pop(context, 'refresh');
         });
     }
     
     void unvote_dinner(String user, String index) {
         String body = "u $user\\$index";
-        http.post('http://192.168.0.111:8080/meal_vote', body: body).then((_) {
+        http.post('http://10.0.0.90:8080/meal_vote', body: body).then((_) {
             Navigator.pop(context, 'refresh');
         });
     }
@@ -657,7 +655,7 @@ class NewDinnerState extends State<NewDinner> {
                     copy: false, cut: false, paste: false, selectAll: false
                 ),
                 autofocus: true,
-                maxLength: 22),
+                ),
             actions: <Widget>[
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -741,7 +739,7 @@ class SetVotesState extends State<SetVotes> {
                     copy: false, cut: false, paste: false, selectAll: false
                 ),
                 autofocus: true,
-                maxLength: 22),
+                ),
             actions: <Widget>[
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
