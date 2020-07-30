@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{sync::{Mutex, Arc}, collections::HashMap};
+use tide::{sse, Result};
 
 // A dinner option
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -336,12 +337,13 @@ fn database_thread(database: std::sync::Arc<Database>, recv: std::sync::mpsc::Re
     }
 }
 
+#[derive(Clone)]
 struct Server {
-    send: std::sync::Mutex<std::sync::mpsc::Sender<DbEvent>>,
-    database: std::sync::Arc<Database>,
+    send: Arc<Mutex<std::sync::mpsc::Sender<DbEvent>>>,
+    database: Arc<Database>,
 }
 
-async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide::Error> {
+async fn handle_event(mut request: tide::Request<Server>) -> Result<String> {
     let post = request
         .body_string()
         .await
@@ -656,12 +658,22 @@ async fn handle_event(mut request: tide::Request<Server>) -> Result<String, tide
     Ok(out)
 }
 
+// Notifications sent through server sent events.
+async fn sse_notify(_req: tide::Request<Server>, sender: tide::sse::Sender)
+    -> Result<()>
+{
+    // loop {
+        sender.send("notify", "Time to vote!", None).await?;
+    // }
+    Ok(())
+}
+
 #[async_std::main]
-async fn main() -> Result<(), std::io::Error> {
-    let database = std::sync::Arc::new(Database::new());
+async fn main() -> Result<()> {
+    let database = Arc::new(Database::new());
     let (send, recv) = std::sync::mpsc::channel();
     let server = Server {
-        send: std::sync::Mutex::new(send),
+        send: Arc::new(Mutex::new(send)),
         database: database.clone(),
     };
     std::thread::spawn(move || database_thread(database, recv));
@@ -669,6 +681,7 @@ async fn main() -> Result<(), std::io::Error> {
     tide::log::start();
     let mut app = tide::with_state(server);
     app.at("/meal_vote").post(handle_event);
+    app.at("/meal_vote/sse").get(sse::endpoint(sse_notify));
     app.listen("10.0.0.90:8080").await?;
     Ok(())
 }
