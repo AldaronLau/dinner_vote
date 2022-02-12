@@ -270,7 +270,7 @@ class _MealListPageState extends State<MealListPage> {
     return ListTile(
       title: Text(
         title,
-        style: Theme.of(context).textTheme.title,
+        style: Theme.of(context).textTheme.titleMedium,
       ),
       subtitle: Text(meal.subtitle),
       onTap: () => _editMeal(context, meal),

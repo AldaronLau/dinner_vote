@@ -50,7 +50,7 @@ class _PersonListPageState extends State<PersonListPage> {
     return ListTile(
       title: Text(
         person.name,
-        style: Theme.of(context).textTheme.title,
+        style: Theme.of(context).textTheme.titleMedium,
       ),
       onTap: () => _editPerson(context, person),
     );
