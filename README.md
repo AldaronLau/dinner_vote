@@ -1,3 +1,5 @@
+This project is discontinued in favor of https://github.com/AldaronLau/MealVote
+
 # MealVote
 An app for choosing dinner.
 
